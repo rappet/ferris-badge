@@ -6,4 +6,4 @@ runner = "probe-run --chip STM32L031G6Ux"
 target = "thumbv6m-none-eabi"
 
 [env]
-DEFMT_LOG = "trace"
+DEFMT_LOG = "error"
