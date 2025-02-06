@@ -8,6 +8,7 @@ use defmt::*;
 use defmt_rtt as _;
 use embassy_executor::Spawner;
 use embassy_stm32::{
+    exti::ExtiInput,
     gpio::{Input, Level, Output, OutputType, Pull, Speed},
     low_power::Executor,
     peripherals::{TIM21, TIM22},
@@ -15,12 +16,11 @@ use embassy_stm32::{
     time::Hertz,
     timer::{
         low_level::CountingMode,
-        simple_pwm::{PwmPin, SimplePwm},
+        simple_pwm::{PwmPin, SimplePwm, SimplePwmChannel},
     },
+    wdg::IndependentWatchdog,
     Config,
 };
-use embassy_stm32::exti::ExtiInput;
-use embassy_stm32::wdg::IndependentWatchdog;
 use embassy_time::{Instant, Timer};
 use panic_probe as _;
 
@@ -59,14 +59,13 @@ async fn async_main(_spawner: Spawner) {
     let _anode_1 = Output::new(p.PA1, Level::High, Speed::Low);
     let _anode_2 = Output::new(p.PA5, Level::High, Speed::Low);
 
-
     //loop {}
     let mut peripherals = {
         Timer::after_millis(1).await;
 
         let green_1 = PwmPin::new_ch1(p.PA2, OutputType::PushPull);
         let red_1 = PwmPin::new_ch2(p.PA3, OutputType::PushPull);
-        let pwm_1 = SimplePwm::new(
+        let mut pwm_1 = SimplePwm::new(
             p.TIM21,
             Some(green_1),
             Some(red_1),
@@ -76,11 +75,14 @@ async fn async_main(_spawner: Spawner) {
             CountingMode::EdgeAlignedUp,
         )
         .split();
+        pwm_1.ch1.enable();
+        pwm_1.ch2.enable();
+
         let eye_left = Eye::new(pwm_1.ch1, pwm_1.ch2);
 
         let green_2 = PwmPin::new_ch1(p.PA6, OutputType::PushPull);
         let red_2 = PwmPin::new_ch2(p.PA7, OutputType::PushPull);
-        let pwm_2 = SimplePwm::new(
+        let mut pwm_2 = SimplePwm::new(
             p.TIM22,
             Some(green_2),
             Some(red_2),
@@ -90,6 +92,9 @@ async fn async_main(_spawner: Spawner) {
             CountingMode::default(),
         )
         .split();
+        pwm_2.ch1.enable();
+        pwm_2.ch2.enable();
+
         let eye_right = Eye::new(pwm_2.ch1, pwm_2.ch2);
 
         BadgePeripherals {
@@ -115,7 +120,6 @@ async fn async_main(_spawner: Spawner) {
         while !peripherals.btn_on.is_activated() {
             Timer::after_millis(10).await;
         }
-
     }
 }
 
@@ -169,8 +173,8 @@ async fn active_loop(p: &mut BadgePeripherals<'_>, mode: &mut Mode) {
 }
 
 pub struct BadgePeripherals<'d> {
-    pub eye_left: Eye<'d, 'd, TIM21, TIM21>,
-    pub eye_right: Eye<'d, 'd, TIM22, TIM22>,
+    pub eye_left: Eye<SimplePwmChannel<'d, TIM21>, SimplePwmChannel<'d, TIM21>>,
+    pub eye_right: Eye<SimplePwmChannel<'d, TIM22>, SimplePwmChannel<'d, TIM22>>,
     pub btn_on: Button<ExtiInput<'d>>,
     pub btn_mode: Button<Input<'d>>,
 }
