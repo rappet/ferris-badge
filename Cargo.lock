@@ -492,7 +492,7 @@ dependencies = [
  "embedded-storage",
  "futures",
  "heapless",
- "panic-probe",
+ "panic-halt",
  "portable-atomic",
  "static_cell",
 ]
@@ -632,14 +632,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "panic-probe"
-version = "0.3.2"
+name = "panic-halt"
+version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4047d9235d1423d66cc97da7d07eddb54d4f154d6c13805c6d0793956f4f25b0"
-dependencies = [
- "cortex-m",
- "defmt",
-]
+checksum = "a513e167849a384b7f9b746e517604398518590a9142f4846a32e3c2a4de7b11"
 
 [[package]]
 name = "pin-project-lite"

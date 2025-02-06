@@ -22,14 +22,14 @@ use embassy_stm32::{
     Config,
 };
 use embassy_time::{Instant, Timer};
-use panic_probe as _;
+use panic_halt as _;
 
 use crate::{button::Button, eye::Eye};
 
 #[cortex_m_rt::entry]
 fn main() -> ! {
     Executor::take().run(|spawner| {
-        unwrap!(spawner.spawn(async_main(spawner)));
+        spawner.spawn(async_main(spawner)).unwrap();
     });
 }
 
