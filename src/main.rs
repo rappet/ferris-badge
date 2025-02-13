@@ -10,9 +10,10 @@ use embassy_executor::Spawner;
 use embassy_stm32::{
     exti::ExtiInput,
     gpio::{Input, Level, Output, OutputType, Pull, Speed},
-    low_power::Executor,
-    peripherals::{TIM21, TIM22},
-    rcc,
+    low_power::{stop_ready, Executor, StopMode},
+    peripherals::{IWDG, TIM21, TIM22},
+    rcc::{self, MSIRange, VoltageScale},
+    rtc::{Rtc, RtcConfig},
     time::Hertz,
     timer::{
         low_level::CountingMode,
@@ -23,6 +24,7 @@ use embassy_stm32::{
 };
 use embassy_time::{Instant, Timer};
 use panic_halt as _;
+use static_cell::StaticCell;
 
 use crate::{button::Button, eye::Eye};
 
@@ -38,30 +40,43 @@ async fn async_main(_spawner: Spawner) {
     let p = embassy_stm32::init({
         let mut config = Config::default();
         config.rcc = rcc::Config {
+            msi: Some(MSIRange::RANGE4M),
+            voltage_scale: VoltageScale::RANGE1,
             ..rcc::Config::default()
         };
         config.enable_debug_during_sleep = true;
         config
     });
-    info!("Hello World!");
+
+    let rtc = Rtc::new(p.RTC, RtcConfig::default());
+    static RTC: StaticCell<Rtc> = StaticCell::new();
+    let rtc = RTC.init(rtc);
+    embassy_stm32::low_power::stop_with_rtc(rtc);
+
+    info!("Started 🦀");
 
     let mut btn_on = ExtiInput::new(p.PA9, p.EXTI9, Pull::Up);
 
+    info!("Waiting for on!");
+    info!("Low power mode enabled: {}", stop_ready(StopMode::Stop2));
+
     btn_on.wait_for_low().await;
 
-    Timer::after_millis(10).await;
+    let mut good_boy = IndependentWatchdog::new(p.IWDG, 1_000 * 1_000 * 3);
+    good_boy.unleash();
 
-    let mut good_boy = IndependentWatchdog::new(p.IWDG, 1_000 * 1_000);
+    good_boy.pet();
 
-    let btn_on = Button::new(btn_on);
-    let btn_mode = Button::new(Input::new(p.PA10, Pull::Up));
+    info!("On!");
 
     let _anode_1 = Output::new(p.PA1, Level::High, Speed::Low);
     let _anode_2 = Output::new(p.PA5, Level::High, Speed::Low);
 
-    //loop {}
     let mut peripherals = {
         Timer::after_millis(1).await;
+
+        let btn_on = Button::new(btn_on);
+        let btn_mode = Button::new(Input::new(p.PA10, Pull::Up));
 
         let green_1 = PwmPin::new_ch1(p.PA2, OutputType::PushPull);
         let red_1 = PwmPin::new_ch2(p.PA3, OutputType::PushPull);
@@ -102,6 +117,7 @@ async fn async_main(_spawner: Spawner) {
             eye_right,
             btn_on,
             btn_mode,
+            good_boy,
         }
     };
 
@@ -114,8 +130,6 @@ async fn async_main(_spawner: Spawner) {
 
         peripherals.eye_left.set_off();
         peripherals.eye_right.set_off();
-
-        good_boy.unleash();
 
         while !peripherals.btn_on.is_activated() {
             Timer::after_millis(10).await;
@@ -167,6 +181,7 @@ async fn active_loop(p: &mut BadgePeripherals<'_>, mode: &mut Mode) {
             }
         }
 
+        p.good_boy.pet();
         Timer::after_millis(1).await;
     }
     info!("Deactivated")
@@ -177,6 +192,7 @@ pub struct BadgePeripherals<'d> {
     pub eye_right: Eye<SimplePwmChannel<'d, TIM22>, SimplePwmChannel<'d, TIM22>>,
     pub btn_on: Button<ExtiInput<'d>>,
     pub btn_mode: Button<Input<'d>>,
+    pub good_boy: IndependentWatchdog<'d, IWDG>,
 }
 
 pub enum Mode {
