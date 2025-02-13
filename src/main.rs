@@ -28,6 +28,8 @@ use static_cell::StaticCell;
 
 use crate::{button::Button, eye::Eye};
 
+const PWM_FREQUENCY: Hertz = Hertz::hz(4096 * 4);
+
 #[cortex_m_rt::entry]
 fn main() -> ! {
     Executor::take().run(|spawner| {
@@ -86,7 +88,7 @@ async fn async_main(_spawner: Spawner) {
             Some(red_1),
             None,
             None,
-            Hertz::hz(500),
+            PWM_FREQUENCY,
             CountingMode::EdgeAlignedUp,
         )
         .split();
@@ -103,7 +105,7 @@ async fn async_main(_spawner: Spawner) {
             Some(red_2),
             None,
             None,
-            Hertz::hz(500),
+            PWM_FREQUENCY,
             CountingMode::default(),
         )
         .split();
