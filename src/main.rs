@@ -44,7 +44,7 @@ async fn async_main(_spawner: Spawner) {
             voltage_scale: VoltageScale::RANGE1,
             ..rcc::Config::default()
         };
-        config.enable_debug_during_sleep = true;
+        config.enable_debug_during_sleep = false;
         config
     });
 
