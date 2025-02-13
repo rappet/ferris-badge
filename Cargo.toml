@@ -29,7 +29,7 @@ static_cell = { version = "2.1" }
 portable-atomic = { version = "1.10", features = ["unsafe-assume-single-core"] }
 
 [profile.release]
-debug = false
+debug = true
 lto = true
 opt-level = "s"
 incremental = false
